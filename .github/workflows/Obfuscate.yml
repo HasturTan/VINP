@@ -1,57 +1,37 @@
-name: Build Obfuscate BPB Panel
+name: BPB Worker Obfuscate
 
 on:
+  workflow_dispatch:  # 允许手动点一下就跑
   push:
-    branches:
-      - main
-  schedule:
-        # Runs everyday at 1:00 AM
-        - cron: "* * * * *"
-
-permissions:
-  contents: write
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out the code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "latest"
+          node-version: 20
 
-      - name: Install dependencies
+      # 下载官方最新的未混淆面板（正确地址）
+      - name: Download BPB unobfuscated worker
         run: |
-          npm install -g javascript-obfuscator
+          wget -O origin.js https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/latest/download/worker.js
 
-      - name: Clone BPB workjs
-        run: |
-          wget -O origin.js https://raw.githubusercontent.com/bia-pain-bache/BPB-Worker-Panel/refs/heads/main/build/unobfuscated-worker.js
-      
-      - name: Obfuscate BPB worker js
-        run: |
-          javascript-obfuscator origin.js --output _worker.js \
-          --compact true \
-          --control-flow-flattening true \
-          --control-flow-flattening-threshold 1 \
-          --dead-code-injection true \
-          --dead-code-injection-threshold 1 \
-          --identifier-names-generator hexadecimal \
-          --rename-globals true \
-          --string-array true \
-          --string-array-encoding 'rc4' \
-          --string-array-threshold 1 \
-          --transform-object-keys true \
-          --unicode-escape-sequence true
+      - name: Install obfuscator
+        run: npm install -g javascript-obfuscator
 
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          branch: main
-          commit_message: ':arrow_up: update latest bpb panel'
-          commit_author: 'github-actions[bot] <github-actions[bot]@users.noreply.github.com>'
-          push_options: '--set-upstream'
+      - name: Obfuscate
+        run: javascript-obfuscator origin.js --output _worker.js
+
+      - name: Commit and push
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add origin.js _worker.js
+          git commit -m "Auto build BPB worker"
+          git push
